@@ -9,8 +9,7 @@ name: Sync
 # commit step also runs when the sync failed or was cancelled, and commits .sync/ alone too.
 # It is skipped only when sync.py exited 2 (listing broken or state unknown: nothing written).
 #
-# A failed run sends GitHub's usual failure email. If the secret KUMA_PUSH_URL is set, a
-# successful run also pings that Uptime Kuma push monitor, which alerts when no ping arrives.
+# A failed run sends GitHub's usual failure email.
 #
 # healthchecks.io (secret HEALTHCHECKS_URL, one check per repository) gets /start when the run begins and, at the
 # end, a success ping or /fail; it alerts on a failed run and when a night's run does not happen at all.
@@ -33,7 +32,6 @@ jobs:
     runs-on: [self-hosted, gesetze]
     timeout-minutes: 350
     env:
-      KUMA_PUSH_URL: ${{ secrets.KUMA_PUSH_URL }}
       HEALTHCHECKS_URL: ${{ secrets.HEALTHCHECKS_URL }}
     steps:
       - name: Report start to healthchecks.io
@@ -82,10 +80,6 @@ jobs:
             git commit -q -m "Abgleich unterbrochen, Fortschritt gesichert"
           fi
           git push
-
-      - name: Report to Uptime Kuma
-        if: success() && env.KUMA_PUSH_URL != ''
-        run: curl -fsS -m 10 "$KUMA_PUSH_URL" > /dev/null
 
       - name: Report result to healthchecks.io
         if: always() && env.HEALTHCHECKS_URL != ''
