@@ -11,6 +11,9 @@ name: Sync
 #
 # A failed run sends GitHub's usual failure email. If the secret KUMA_PUSH_URL is set, a
 # successful run also pings that Uptime Kuma push monitor, which alerts when no ping arrives.
+#
+# healthchecks.io (secret HEALTHCHECKS_URL, one check per repository) gets /start when the run begins and, at the
+# end, a success ping or /fail; it alerts on a failed run and when a night's run does not happen at all.
 
 on:
   schedule:
@@ -30,7 +33,12 @@ jobs:
     timeout-minutes: 350
     env:
       KUMA_PUSH_URL: ${{ secrets.KUMA_PUSH_URL }}
+      HEALTHCHECKS_URL: ${{ secrets.HEALTHCHECKS_URL }}
     steps:
+      - name: Report start to healthchecks.io
+        if: env.HEALTHCHECKS_URL != ''
+        run: curl -fsS -m 10 --retry 3 "$HEALTHCHECKS_URL/start" > /dev/null || true
+
       - uses: actions/checkout@v4
         with:
           path: data
@@ -77,3 +85,11 @@ jobs:
       - name: Report to Uptime Kuma
         if: success() && env.KUMA_PUSH_URL != ''
         run: curl -fsS -m 10 "$KUMA_PUSH_URL" > /dev/null
+
+      - name: Report result to healthchecks.io
+        if: always() && env.HEALTHCHECKS_URL != ''
+        env:
+          JOB_STATUS: ${{ job.status }}
+        run: |
+          if [ "$JOB_STATUS" = success ]; then path=""; else path="/fail"; fi
+          curl -fsS -m 10 --retry 3 "$HEALTHCHECKS_URL$path" > /dev/null || true
