@@ -1,0 +1,79 @@
+name: Sync
+
+# Every night: mirror bravors.brandenburg.de (Brandenburg) into this repository and commit what changed.
+# The sync code lives in Gesetze-fuer-KI/gesetze-fuer-ki (app/sync.py --land bb); this
+# repository holds only data.
+#
+# The first full pass can take several nights: sync.py stops starting new fetches after
+# --max-minutes, saves its progress in .sync/state.json, and the next run carries on. So the
+# commit step also runs when the sync failed or was cancelled, and commits .sync/ alone too.
+# It is skipped only when sync.py exited 2 (listing broken or state unknown: nothing written).
+#
+# A failed run sends GitHub's usual failure email. If the secret KUMA_PUSH_URL is set, a
+# successful run also pings that Uptime Kuma push monitor, which alerts when no ping arrives.
+
+on:
+  schedule:
+    - cron: "2 2 * * *"  # 02:02 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    env:
+      KUMA_PUSH_URL: ${{ secrets.KUMA_PUSH_URL }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: data
+
+      - uses: actions/checkout@v4
+        with:
+          repository: Gesetze-fuer-KI/gesetze-fuer-ki
+          ref: main
+          path: tool
+
+      - uses: astral-sh/setup-uv@v6
+
+      - name: Sync
+        id: sync
+        working-directory: tool/app
+        run: |
+          # A stale message from an earlier run must not describe this one (see Commit).
+          rm -f "$GITHUB_WORKSPACE/data/.sync/commit-message.txt"
+          set +e
+          uv run --frozen --no-dev python sync.py --out "$GITHUB_WORKSPACE/data" --land bb --max-minutes 330
+          code=$?
+          echo "exit=$code" >> "$GITHUB_OUTPUT"
+          exit $code
+
+      - name: Commit
+        # Also after a failed or cancelled sync, to keep its progress; not after exit 2.
+        if: always() && steps.sync.outcome != 'skipped' && steps.sync.outputs.exit != '2'
+        working-directory: data
+        run: |
+          git config user.name "gesetze-fuer-ki sync"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then
+            echo "Nothing changed."
+            exit 0
+          fi
+          if [ -s .sync/commit-message.txt ]; then
+            git commit -q -F .sync/commit-message.txt
+          else
+            git commit -q -m "Abgleich unterbrochen, Fortschritt gesichert"
+          fi
+          git push
+
+      - name: Report to Uptime Kuma
+        if: success() && env.KUMA_PUSH_URL != ''
+        run: curl -fsS -m 10 "$KUMA_PUSH_URL" > /dev/null
