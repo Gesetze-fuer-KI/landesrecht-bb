@@ -79,6 +79,8 @@ jobs:
           else
             git commit -q -m "Abgleich unterbrochen, Fortschritt gesichert"
           fi
+          # Someone may have pushed (README, workflow) while the sync ran; data and those files do not overlap.
+          git pull -q --rebase
           git push
 
       - name: Report result to healthchecks.io
