@@ -17,7 +17,7 @@ name: Sync
 
 on:
   schedule:
-    - cron: "2 2 * * *"  # 02:02 UTC
+    - cron: "47 3 * * *"  # 03:47 UTC, after the other syncs on the shared runner
   workflow_dispatch:
 
 permissions:
@@ -29,7 +29,8 @@ concurrency:
 
 jobs:
   sync:
-    runs-on: ubuntu-latest
+    # Our own runner on notefeed-1 (github-runner), one job at a time; Brandenburg runs last, it takes hours.
+    runs-on: [self-hosted, gesetze]
     timeout-minutes: 350
     env:
       KUMA_PUSH_URL: ${{ secrets.KUMA_PUSH_URL }}
