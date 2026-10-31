@@ -1,6 +1,4 @@
-Brandenburg Stand 2026-10-30: 0 geändert, 0 neu, 0 entfernt
+Brandenburg Stand 2026-10-31: 0 geändert, 0 neu, 0 entfernt
 
 
-Nicht abrufbar (4): bb-212311, bb-212313, bb-212314, bb-212319
-
-Abgleich läuft noch: 972 von 1786
+Nicht abrufbar (14): bb-212311, bb-212313, bb-212314, bb-212319, bb-212693, bb-212712, bb-212735, bb-212775, bb-212779, bb-212805, bb-212806, bb-212877, bb-212957, bb-262936
